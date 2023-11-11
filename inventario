@@ -1,0 +1,279 @@
+const NOMBRE_HOJA_FORMULARIO = "Formulario"
+const NOMBRE_HOJA_PRODUCTOS = "Productos"
+const NOMBRE_HOJA_ENTRADAS = "Entradas"
+const NOMBRE_HOJA_SALIDAS = "Salidas"
+const NOMBRE_HOJA_INVENTARIO = "Inventario"
+const NOMBRE_HOJA_CLIENTES = "Clientes"
+const listaUbicaciones = ["Taller", "Oficina", "Camion"];
+var libro = SpreadsheetApp.getActiveSpreadsheet();
+var hojaFormulario = libro.getSheetByName(NOMBRE_HOJA_FORMULARIO)
+var hojaProducto = libro.getSheetByName(NOMBRE_HOJA_PRODUCTOS)
+
+function sumarNumeros(a, b) {
+  const numeroA = Number(a);
+  const numeroB = Number(b);
+  if (!isNaN(numeroA) && !isNaN(numeroB)) {
+    return numeroA + numeroB;
+  } else {
+    return 0;
+  }
+}
+
+function guardarProducto() {
+  const DIR_REF = "B2";
+  const DIR_NOMBRE = "B3";
+  var referencia = hojaFormulario.getRange(DIR_REF).getValue();
+  var nombre = hojaFormulario.getRange(DIR_NOMBRE).getValue();
+  var productos = hojaProducto.getDataRange().getValues();
+  var listaProductos = productos.map(fila => fila[0]);
+
+  if (referencia !== "" && nombre !== "") {
+    if (listaProductos.indexOf(referencia) === -1) {
+      hojaProducto.appendRow([referencia, nombre]);
+
+
+      var hojaInventario = libro.getSheetByName(NOMBRE_HOJA_INVENTARIO);
+      var filaInventario = [referencia];
+      for (var i = 0; i < listaUbicaciones.length; i++) {
+        filaInventario.push(0);
+      }
+      hojaInventario.appendRow(filaInventario);
+
+      hojaFormulario.getRange(DIR_REF).clearContent();
+      hojaFormulario.getRange(DIR_NOMBRE).clearContent();
+      hojaFormulario.getRange("A17").setValue("Producto Agregado Exitosamente");
+    } else {
+      hojaFormulario.getRange("A17").setValue("La referencia ya existe en la hoja de productos");
+    }
+  } else {
+    hojaFormulario.getRange("A17").setValue("Faltó Información");
+  }
+}
+
+
+
+function guardarEntrada() {
+  const DIR_REF = "F2";
+  const DIR_UNIDADES = "F3";
+  const DIR_FECHA = "F4";
+  const DIR_PROVEEDOR = "F5";
+  const DIR_UBICACION = "F6";
+
+  var referencia = hojaFormulario.getRange(DIR_REF).getValue();
+  var unidades = hojaFormulario.getRange(DIR_UNIDADES).getValue();
+  var fecha = hojaFormulario.getRange(DIR_FECHA).getValue();
+  var proveedor = hojaFormulario.getRange(DIR_PROVEEDOR).getValue();
+  var ubicacion = hojaFormulario.getRange(DIR_UBICACION).getValue();
+
+  if (referencia !== "" && unidades !== "" && fecha !== "" && proveedor !== "" && ubicacion !== "") {
+    var productos = hojaProducto.getDataRange().getValues();
+    var listaProductos = productos.map(fila => fila[0]);
+    var fila = listaProductos.indexOf(referencia);
+    var producto = productos[fila][1];
+
+    var hojaEntradas = libro.getSheetByName(NOMBRE_HOJA_ENTRADAS);
+
+    hojaEntradas.appendRow([referencia, producto, unidades, fecha, proveedor, ubicacion]);
+
+
+    actualizarInventario(referencia, ubicacion, unidades);
+
+    hojaFormulario.getRange(DIR_REF).clearContent();
+    hojaFormulario.getRange(DIR_UNIDADES).clearContent();
+    hojaFormulario.getRange(DIR_FECHA).clearContent();
+    hojaFormulario.getRange(DIR_PROVEEDOR).clearContent();
+    hojaFormulario.getRange(DIR_UBICACION).clearContent();
+
+    hojaFormulario.getRange("A17").setValue("Entrada Agregada Exitosamente");
+  } else {
+    hojaFormulario.getRange("A17").setValue("Faltó Información");
+  }
+}
+
+function actualizarInventario(referencia, ubicacion, unidades) {
+
+  var productos = hojaProducto.getDataRange().getValues();
+  var listaProductos = productos.map(fila => fila[0]);
+  var fila = listaProductos.indexOf(referencia);
+
+  if (fila !== -1) {
+
+    var columna;
+    switch (ubicacion) {
+      case "Taller":
+        columna = 2;
+        break;
+      case "Oficina":
+        columna = 3;
+        break;
+      case "Camion":
+        columna = 4;
+        break;
+      default:
+
+        return;
+    }
+
+
+    var hojaInventario = libro.getSheetByName(NOMBRE_HOJA_INVENTARIO);
+    var valorActual = hojaInventario.getRange(fila + 1, columna).getValue();
+    var nuevaCantidad = sumarNumeros(valorActual, unidades);
+
+
+    if (nuevaCantidad < 0) {
+      nuevaCantidad = 0;
+    }
+
+
+    hojaInventario.getRange(fila + 1, columna).setValue(nuevaCantidad);
+
+    // Calcular el nuevo valor de "Almacén General" como la suma total
+    var unidadesTaller = hojaInventario.getRange(fila + 1, 2).getValue();
+    var unidadesOficina = hojaInventario.getRange(fila + 1, 3).getValue();
+    var unidadesCamion = hojaInventario.getRange(fila + 1, 4).getValue();
+    var sumaAlmacenGeneral = sumarNumeros(unidadesTaller, unidadesOficina);
+    sumaAlmacenGeneral = sumarNumeros(sumaAlmacenGeneral, unidadesCamion);
+
+
+    hojaInventario.getRange(fila + 1, 5).setValue(sumaAlmacenGeneral);
+
+    var refUbicacion = referencia;
+    hojaInventario.getRange(fila + 1, 1).setValue(refUbicacion);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+function guardarSalida() {
+  const DIR_REF = "I2";
+  const DIR_UNIDADES = "I3";
+  const DIR_FECHA = "I4";
+  const DIR_PROVEEDOR = "I5";
+  const DIR_UBICACION = "I6";
+
+  var referencia = hojaFormulario.getRange(DIR_REF).getValue();
+  var unidades = hojaFormulario.getRange(DIR_UNIDADES).getValue();
+  var fecha = hojaFormulario.getRange(DIR_FECHA).getValue();
+  var proveedor = hojaFormulario.getRange(DIR_PROVEEDOR).getValue();
+  var ubicacion = hojaFormulario.getRange(DIR_UBICACION).getValue();
+
+  if (referencia !== "" && unidades !== "" && fecha !== "" && proveedor !== "" && ubicacion !== "") {
+    var productos = hojaProducto.getDataRange().getValues();
+    var listaProductos = productos.map(fila => fila[0]);
+    var fila = listaProductos.indexOf(referencia);
+    var producto = productos[fila][1];
+
+    var hojaSalidas = libro.getSheetByName(NOMBRE_HOJA_SALIDAS);
+
+    hojaSalidas.appendRow([referencia, producto, unidades, fecha, proveedor, ubicacion]);
+
+
+    actualizarInventarioSalida(referencia, ubicacion, unidades);
+
+    hojaFormulario.getRange(DIR_REF).clearContent();
+    hojaFormulario.getRange(DIR_UNIDADES).clearContent();
+    hojaFormulario.getRange(DIR_FECHA).clearContent();
+    hojaFormulario.getRange(DIR_PROVEEDOR).clearContent();
+    hojaFormulario.getRange(DIR_UBICACION).clearContent();
+
+    hojaFormulario.getRange("A17").setValue("Salida Agregada Exitosamente");
+  } else {
+    hojaFormulario.getRange("A17").setValue("Faltó Información");
+  }
+}
+
+
+function actualizarInventarioSalida(referencia, ubicacion, unidades) {
+
+  var productos = hojaProducto.getDataRange().getValues();
+  var listaProductos = productos.map(fila => fila[0]);
+  var fila = listaProductos.indexOf(referencia);
+
+  if (fila !== -1) {
+
+    var columna;
+    switch (ubicacion) {
+      case "Taller":
+        columna = 2;
+        break;
+      case "Oficina":
+        columna = 3;
+        break;
+      case "Camion":
+        columna = 4;
+        break;
+      default:
+
+        return;
+    }
+
+
+    var hojaInventario = libro.getSheetByName(NOMBRE_HOJA_INVENTARIO);
+    var valorActual = hojaInventario.getRange(fila + 1, columna).getValue();
+    var nuevaCantidad = sumarNumeros(valorActual, -unidades);
+
+
+    if (nuevaCantidad < 0) {
+      nuevaCantidad = 0;
+    }
+
+
+    hojaInventario.getRange(fila + 1, columna).setValue(nuevaCantidad);
+
+    // Calcular el nuevo valor de "Almacén General" como la suma total
+    var unidadesTaller = hojaInventario.getRange(fila + 1, 2).getValue();
+    var unidadesOficina = hojaInventario.getRange(fila + 1, 3).getValue();
+    var unidadesCamion = hojaInventario.getRange(fila + 1, 4).getValue();
+    var sumaAlmacenGeneral = sumarNumeros(unidadesTaller, unidadesOficina);
+    sumaAlmacenGeneral = sumarNumeros(sumaAlmacenGeneral, unidadesCamion);
+
+
+    hojaInventario.getRange(fila + 1, 5).setValue(sumaAlmacenGeneral);
+
+    var refUbicacion = referencia;
+    hojaInventario.getRange(fila + 1, 1).setValue(refUbicacion);
+  }
+}
+
+
+
+
+function guardarCliente() {
+  const DIR_NOMBRE_CLIENTE = "L2";
+  const DIR_CI = "L3";
+  const DIR_TELEFONO = "L4";
+  const DIR_CORREO = "L5";
+
+  var nombreCliente = hojaFormulario.getRange(DIR_NOMBRE_CLIENTE).getValue();
+  var ci = hojaFormulario.getRange(DIR_CI).getValue();
+  var telefono = hojaFormulario.getRange(DIR_TELEFONO).getValue();
+  var correo = hojaFormulario.getRange(DIR_CORREO).getValue();
+  var hojaClientes = libro.getSheetByName(NOMBRE_HOJA_CLIENTES);
+  var clientes = hojaClientes.getDataRange().getValues();
+  var listaCI = clientes.map(fila => fila[1]);
+
+  if (nombreCliente !== "" && ci !== "" && telefono !== "" && correo !== "") {
+    if (listaCI.indexOf(ci) === -1) {
+      hojaClientes.appendRow([nombreCliente, ci, telefono, correo]);
+      hojaFormulario.getRange(DIR_NOMBRE_CLIENTE).clearContent();
+      hojaFormulario.getRange(DIR_CI).clearContent();
+      hojaFormulario.getRange(DIR_TELEFONO).clearContent();
+      hojaFormulario.getRange(DIR_CORREO).clearContent();
+      hojaFormulario.getRange("A17").setValue("Cliente Agregado Exitosamente");
+    } else {
+      hojaFormulario.getRange("A17").setValue("Dato repetido: el CI ya existe en la hoja de clientes");
+    }
+  } else {
+    hojaFormulario.getRange("A17").setValue("Faltó Información");
+  }
+}
+
+
